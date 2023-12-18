@@ -15,6 +15,8 @@ public class User {
     @Id
     private String username;
 
+    private String phoneNumber;
+
     private String password;
 
     private String salt;
