@@ -1,4 +1,4 @@
-package at.htlleonding.password.models.dto;
+package at.htlleonding.password.models;
 
 import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
