@@ -10,14 +10,14 @@ import jakarta.ws.rs.*;
 import jakarta.ws.rs.core.MediaType;
 import lombok.extern.slf4j.Slf4j;
 
-@Path("/password")
+@Path("/app")
 @Slf4j
 public class PasswordResource {
     @Inject
     EntityManager entityManager;
 
     @Inject
-    UserRepository passwordRepository;
+    UserRepository userRepository;
 
     @ConfigProperty(name = "global.pepper")
     String globalPepper;
@@ -49,9 +49,9 @@ public class PasswordResource {
 
         boolean validPasswd = HashTools.passwdMatchesHash(
             loginDto.password,
-            user.getPassword(),
             user.getSalt(),
-            this.globalPepper
+            this.globalPepper,
+            user.getPassword() // Password hash
         );
         if (!validPasswd) {
             log.info("Invalid password for user {}", loginDto.username);
@@ -83,7 +83,34 @@ public class PasswordResource {
             };
         }
 
-        passwordRepository.createUser(
+        // Validate username (email)
+        if (!Validator.validateUsername(registerDto.username)) {
+            log.info("Invalid username {}", registerDto.username);
+            return new Object() {
+                public String message = "Invalid username";
+                public int status = 400;
+            };
+        }
+
+        // Validate phone number
+        if (!Validator.validatePhoneNumber(registerDto.phoneNumber)) {
+            log.info("Invalid phone number {}", registerDto.phoneNumber);
+            return new Object() {
+                public String message = "Invalid phone number";
+                public int status = 400;
+            };
+        }
+
+        // Validate password
+        if (!Validator.validatePassword(registerDto.password)) {
+            log.info("Invalid password");
+            return new Object() {
+                public String message = "Invalid password";
+                public int status = 400;
+            };
+        }
+
+        userRepository.createUser(
             registerDto.username,
             registerDto.phoneNumber,
             registerDto.password
@@ -109,5 +136,96 @@ public class PasswordResource {
         }
 
         return UserDto.fromUser(user);
+    }
+
+    @POST
+    @Path("/reset/request/{username}")
+    @Produces(MediaType.APPLICATION_JSON)
+    public Object requestResetUserPassword(@PathParam("username") String username) {
+        log.info("Resetting password for user {}", username);
+        User user = entityManager.find(User.class, username);
+        if (user == null) {
+            log.info("User {} not found", username);
+            return new Object() {
+                public String message = "User not found";
+                public int status = 404;
+            };
+        }
+
+        String resetKey = HashTools.generateRandomString(32);
+        userRepository.createResetKey(username, resetKey);
+
+        // Send the email
+        MailAndSMSSimulator.sendEmail(
+            user.getUsername(), // The email address is the username
+            "Password reset",
+            "Your password reset key is: " + resetKey + "\nPlease click on this link to reset your password: http://localhost:8080/password/reset/confirm/" + resetKey
+        );
+
+        return new Object() {
+            public String message = "Reset key created. View email for further instructions.";
+            public int status = 201;
+        };
+    }
+
+    @POST
+    @Path("/reset/confirm/{resetKey}")
+    @Consumes(MediaType.APPLICATION_JSON)
+    @Produces(MediaType.APPLICATION_JSON)
+    public Object confirmResetUserPassword(@PathParam("resetKey") String resetKey, ResetPasswordDto resetPasswordDto) {
+        log.info("Confirming password reset for verification code {}", resetKey);
+        ResetKeys resetKeys = entityManager.find(ResetKeys.class, resetKey);
+        if (resetKeys == null) {
+            log.info("Verification code {} not found", resetKey);
+            return new Object() {
+                public String message = "Verification code not found";
+                public int status = 404;
+            };
+        }
+
+        User user = entityManager.find(User.class, resetKeys.getUsername());
+        if (user == null) {
+            log.info("User {} not found", resetKeys.getUsername());
+            return new Object() {
+                public String message = "User not found";
+                public int status = 404;
+            };
+        }
+
+        // Validate password
+        if (!Validator.validatePassword(resetPasswordDto.newPassword)) {
+            log.info("Invalid password");
+            return new Object() {
+                public String message = "Invalid password";
+                public int status = 400;
+            };
+        }
+
+        // Check if the reset key is still valid
+        if (resetKeys.getResetKey().equals(resetKey)) {
+            log.info("Reset key {} is valid", resetKey);
+
+            try {
+                userRepository.resetUserPassword(user.getUsername(), resetPasswordDto.newPassword);
+                userRepository.removeResetKey(resetKey);
+            } catch (RuntimeException e) {
+                log.error("Error while resetting password", e);
+                return new Object() {
+                    public String message = "Error while resetting password";
+                    public int status = 500;
+                };
+            }
+
+            return new Object() {
+                public String message = "Password reset successful";
+                public int status = 200;
+            };
+        } else {
+            log.info("Reset key {} is invalid", resetKey);
+            return new Object() {
+                public String message = "Reset key is invalid";
+                public int status = 401;
+            };
+        }
     }
 }

@@ -11,14 +11,9 @@ import lombok.*;
 @AllArgsConstructor(access = AccessLevel.PRIVATE)
 @Builder
 @Entity
-public class User {
+public class ResetKeys {
     @Id
+    private String resetKey;
+
     private String username;
-
-    private String phoneNumber;
-
-    @Setter
-    private String password;
-
-    private String salt;
 }

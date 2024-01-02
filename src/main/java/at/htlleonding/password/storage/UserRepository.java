@@ -1,6 +1,7 @@
 package at.htlleonding.password.storage;
 
 import at.htlleonding.password.HashTools;
+import at.htlleonding.password.models.ResetKeys;
 import at.htlleonding.password.models.User;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
@@ -8,12 +9,6 @@ import jakarta.persistence.EntityManager;
 import jakarta.transaction.Transactional;
 import lombok.extern.slf4j.Slf4j;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
-
-import javax.crypto.SecretKeyFactory;
-import javax.crypto.spec.PBEKeySpec;
-import java.security.NoSuchAlgorithmException;
-import java.security.spec.InvalidKeySpecException;
-import java.security.spec.KeySpec;
 
 @ApplicationScoped
 @Slf4j
@@ -45,5 +40,39 @@ public class UserRepository {
             .build();
 
         entityManager.persist(user);
+    }
+
+    @Transactional
+    public void createResetKey(String username, String resetKey) {
+        if (entityManager.find(User.class, username) == null) {
+            throw new RuntimeException("User does not exist");
+        }
+
+        ResetKeys resetKeys = ResetKeys.builder()
+            .username(username)
+            .resetKey(resetKey)
+            .build();
+        entityManager.persist(resetKeys);
+    }
+
+    @Transactional
+    public void resetUserPassword(String username, String newPassword) {
+        User user = entityManager.find(User.class, username);
+        if (user == null) {
+            throw new RuntimeException("User does not exist");
+        }
+
+        String hashedPassword = HashTools.toHash(newPassword, user.getSalt(), globalPepper);
+        user.setPassword(hashedPassword);
+    }
+
+    @Transactional
+    public void removeResetKey(String resetKey) {
+        ResetKeys resetKeys = entityManager.find(ResetKeys.class, resetKey);
+        if (resetKeys == null) {
+            throw new RuntimeException("Reset key does not exist");
+        }
+
+        entityManager.remove(resetKeys);
     }
 }

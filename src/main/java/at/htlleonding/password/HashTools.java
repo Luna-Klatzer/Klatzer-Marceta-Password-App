@@ -3,13 +3,16 @@ package at.htlleonding.password;
 import javax.crypto.SecretKeyFactory;
 import javax.crypto.spec.PBEKeySpec;
 import java.security.NoSuchAlgorithmException;
+import java.security.SecureRandom;
 import java.security.spec.InvalidKeySpecException;
 import java.security.spec.KeySpec;
 
 public class HashTools {
+    private static final SecureRandom secureRandom;
     private static final SecretKeyFactory factory;
 
     static {
+        secureRandom = new SecureRandom();
         try {
             factory = SecretKeyFactory.getInstance("PBKDF2WithHmacSHA512");
         } catch (NoSuchAlgorithmException e) {
@@ -85,5 +88,11 @@ public class HashTools {
     public static boolean passwdMatchesHash(String password, String salt, String pepper, String storedHash) {
         String hashedPassword = toHash(password, salt, pepper);
         return hashedPassword.equals(storedHash);
+    }
+
+    public static String generateRandomString(int bytes) {
+        byte[] randomBytes = new byte[bytes];
+        secureRandom.nextBytes(randomBytes);
+        return encodeHexString(randomBytes);
     }
 }
