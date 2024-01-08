@@ -174,7 +174,7 @@ public class PasswordResource {
     @Produces(MediaType.APPLICATION_JSON)
     public Object confirmResetUserPassword(@PathParam("resetKey") String resetKey, ResetPasswordDto resetPasswordDto) {
         log.info("Confirming password reset for verification code {}", resetKey);
-        ResetKeys resetKeys = entityManager.find(ResetKeys.class, resetKey);
+        ResetKey resetKeys = entityManager.find(ResetKey.class, resetKey);
         if (resetKeys == null) {
             log.info("Verification code {} not found", resetKey);
             return new Object() {

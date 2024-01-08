@@ -1,7 +1,7 @@
 package at.htlleonding.password.storage;
 
 import at.htlleonding.password.HashTools;
-import at.htlleonding.password.models.ResetKeys;
+import at.htlleonding.password.models.ResetKey;
 import at.htlleonding.password.models.User;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
@@ -48,7 +48,7 @@ public class UserRepository {
             throw new RuntimeException("User does not exist");
         }
 
-        ResetKeys resetKeys = ResetKeys.builder()
+        ResetKey resetKeys = ResetKey.builder()
             .username(username)
             .resetKey(resetKey)
             .build();
@@ -68,7 +68,7 @@ public class UserRepository {
 
     @Transactional
     public void removeResetKey(String resetKey) {
-        ResetKeys resetKeys = entityManager.find(ResetKeys.class, resetKey);
+        ResetKey resetKeys = entityManager.find(ResetKey.class, resetKey);
         if (resetKeys == null) {
             throw new RuntimeException("Reset key does not exist");
         }

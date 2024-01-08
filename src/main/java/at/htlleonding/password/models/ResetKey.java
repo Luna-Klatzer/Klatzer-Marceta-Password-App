@@ -11,7 +11,7 @@ import lombok.*;
 @AllArgsConstructor(access = AccessLevel.PRIVATE)
 @Builder
 @Entity
-public class ResetKeys {
+public class ResetKey {
     @Id
     private String resetKey;
 
